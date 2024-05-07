@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Web.UI.WebControls;
@@ -8,58 +9,85 @@ namespace WebAppEHR.admin
     public partial class handle_room : System.Web.UI.Page
     {
         string connectionString = "Server=DESKTOP-VHG3DM9;Database=hospital7; Integrated Security=True";
-
         protected void Page_Load(object sender, EventArgs e)
         {
             if (!IsPostBack)
             {
-                BindRoomData();
+                BindRooms();
             }
         }
 
-        private void BindRoomData()
+        protected void BindRooms()
         {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            
+            using (SqlConnection con = new SqlConnection(connectionString))
             {
-                string query = "SELECT * FROM Room";
-                using (SqlCommand command = new SqlCommand(query, connection))
+                using (SqlCommand cmd = new SqlCommand("SELECT room_num, patient_id, staff_id, admission_date FROM Room", con))
                 {
-                    connection.Open();
-                    SqlDataAdapter adapter = new SqlDataAdapter(command);
-                    DataTable dt = new DataTable();
-                    adapter.Fill(dt);
-
-                    GridViewRooms.DataSource = dt;
-                    GridViewRooms.DataBind();
+                    using (SqlDataAdapter da = new SqlDataAdapter(cmd))
+                    {
+                        DataTable dt = new DataTable();
+                        da.Fill(dt);
+                        GridViewRooms.DataSource = dt;
+                        GridViewRooms.DataBind();
+                    }
                 }
             }
+        }
+
+        protected void btnInsertRoom_Click(object sender, EventArgs e)
+        {
+            string roomNum = txtRoomNumber.Text;
+            string patientId = txtPatientID.Text;
+            string staffId = txtStaffID.Text;
+            string admissionDate = txtAdmissionDate.Text;
+
+         
+            using (SqlConnection con = new SqlConnection(connectionString))
+            {
+                using (SqlCommand cmd = new SqlCommand("INSERT INTO Room (room_num, patient_id, staff_id, admission_date) VALUES (@RoomNum, @PatientId, @StaffId, @AdmissionDate)", con))
+                {
+                    cmd.Parameters.AddWithValue("@RoomNum", roomNum);
+                    cmd.Parameters.AddWithValue("@PatientId", patientId);
+                    cmd.Parameters.AddWithValue("@StaffId", staffId);
+                    cmd.Parameters.AddWithValue("@AdmissionDate", admissionDate);
+                    con.Open();
+                    cmd.ExecuteNonQuery();
+                    con.Close();
+                }
+            }
+
+            BindRooms();
+        }
+
+        protected void GridViewRooms_RowEditing(object sender, GridViewEditEventArgs e)
+        {
+            GridViewRooms.EditIndex = e.NewEditIndex;
+            BindRooms();
+        }
+
+        protected void GridViewRooms_RowCancelingEdit(object sender, GridViewCancelEditEventArgs e)
+        {
+            GridViewRooms.EditIndex = -1;
+            BindRooms();
         }
 
         protected void GridViewRooms_RowDeleting(object sender, GridViewDeleteEventArgs e)
         {
-            int roomNum = Convert.ToInt32(GridViewRooms.DataKeys[e.RowIndex].Value);
+            string roomNum = GridViewRooms.DataKeys[e.RowIndex].Values["room_num"].ToString();
 
-            // Implement room deletion logic here
-            DeleteRoom(roomNum);
-
-            // Re-bind room data after deletion
-            BindRoomData();
-        }
-
-        // Method to delete room for a patient
-        private void DeleteRoom(int roomNum)
-        {
-            using (SqlConnection connection = new SqlConnection(connectionString))
+            using (SqlConnection con = new SqlConnection(connectionString))
             {
-                string query = "UPDATE Room SET patient_id = NULL WHERE room_num = @RoomNum";
-                using (SqlCommand command = new SqlCommand(query, connection))
+                using (SqlCommand cmd = new SqlCommand("DELETE FROM Room WHERE room_num = @RoomNum", con))
                 {
-                    command.Parameters.AddWithValue("@RoomNum", roomNum);
-
-                    connection.Open();
-                    command.ExecuteNonQuery();
+                    cmd.Parameters.AddWithValue("@RoomNum", roomNum);
+                    con.Open();
+                    cmd.ExecuteNonQuery();
+                    con.Close();
                 }
             }
+
+            BindRooms();
         }
     }
 }
